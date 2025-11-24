@@ -26,6 +26,7 @@
   environment.systemPackages = with pkgs; [
     neovim
     git
+    btrfs-progs
     gemini-cli
     bitwarden-cli
   ];
