@@ -26,15 +26,20 @@
   environment.systemPackages = with pkgs; [
     neovim
     git
+    gemini-cli
+    bitwarden-cli
   ];
+
+  # Enable Direnv (loads .envrc files automatically)
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
 
   # Configure your system-wide user settings (groups, etc), add more users as needed.
   users.users = {
-    # TODO: Replace `aldur` with the username you picked when configuring Linux
-    # in ChromeOS.
     kleinbem = {
       isNormalUser = true;
-
       linger = true;
       extraGroups = [ "wheel" ];
     };
