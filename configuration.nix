@@ -32,7 +32,7 @@
   users.users = {
     # TODO: Replace `aldur` with the username you picked when configuring Linux
     # in ChromeOS.
-    aldur = {
+    kleinbem = {
       isNormalUser = true;
 
       linger = true;
