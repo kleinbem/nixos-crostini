@@ -27,15 +27,16 @@
     neovim
     git
     btrfs-progs
-    gemini-cli
-    bitwarden-cli
+    #gemini-cli
+    #bitwarden-cli
   ];
 
-  # Enable Direnv (loads .envrc files automatically)
-  programs.direnv = {
-    enable = true;
-    nix-direnv.enable = true;
-  };
+  # Temp Diasable, console error  
+  ## Enable Direnv (loads .envrc files automatically)
+  #programs.direnv = {
+  #  enable = true;
+  #  nix-direnv.enable = true;
+  #};
 
   # Configure your system-wide user settings (groups, etc), add more users as needed.
   users.users = {
