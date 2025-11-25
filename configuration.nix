@@ -21,6 +21,7 @@
     "nix-command"
     "flakes"
   ];
+  nixpkgs.config.allowUnfree = true;
 
   # Search for additional packages here: https://search.nixos.org/packages
   environment.systemPackages = with pkgs; [
