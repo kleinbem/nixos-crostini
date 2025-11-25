@@ -29,6 +29,7 @@
 
     in
     {
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
       packages = forAllSystems (system: rec {
         lxc = nixos-generators.nixosGenerate {
           inherit system specialArgs modules;
@@ -55,10 +56,6 @@
         baguette-zimage = self.nixosConfigurations.baguette-nixos.config.system.build.btrfsImageCompressed;
 
         default = self.packages.${system}.lxc-image-and-metadata;
-      });
-
-      checks = forAllSystems (system: {
-        inherit (self.outputs.packages.${system}) baguette-tarball lxc-image-and-metadata;
       });
 
       # This allows you to re-build the container from inside the container.
