@@ -26,7 +26,8 @@
   # Search for additional packages here: https://search.nixos.org/packages
   environment.systemPackages = with pkgs; [
     neovim
-    git
+    gh
+    wget
     btrfs-progs
     gemini-cli
     bitwarden-cli
@@ -37,15 +38,52 @@
     ollama
     claude-code
     vscode-fhs
+    distrobox
+    ripgrep
+    curl
+    htop
+    podman-compose
+    usbutils
+    pass
+    gnupg
   ];
+
+ # My GitHub / Git Configuration
+  programs.git = {
+    enable = true;
+    config = {
+      user = {
+        email = "martin.kleinberger@gmail.com";
+        name = "kleinbem";
+      };
+      push = {
+        autoSetupRemote = true;
+      };
+      init = {
+        defaultBranch = "main";
+      };
+    };
+  };
+
+# Enable GPG agent
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true; # Optional, if you use it for SSH too
+    pinentryPackage = pkgs.pinentry-curses; # Or pinentry-qt/gtk2 depending on your taste
+  };
+  
+  # Enable Podman
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true; # Makes 'docker' alias to 'podman'
+    defaultNetwork.settings.dns_enabled = true;
+  };
 
   # Enable Ollama Service (For running Meta Llama locally)
   services.ollama = {
     enable = true;
     acceleration = "rocm"; # Use "cuda" if you have NVIDIA, "rocm" for AMD, or remove for CPU-only
   };
-
-
 
   # This daemon allows the system to talk to the smart card
   services.pcscd.enable = true;
@@ -65,7 +103,10 @@
     kleinbem = {
       isNormalUser = true;
       linger = true;
-      extraGroups = [ "wheel" ];
+      extraGroups = [
+         "wheel"
+         "podman"
+      ];
     };
   };
 
