@@ -1,0 +1,40 @@
+name: "Build Baguette Image"
+
+on:
+  # Manual trigger only (saves money/resources)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-image:
+    runs-on: ubuntu-24.04
+    steps:
+      # 1. Free up disk space (CRITICAL for large builds)
+      # Deletes Android SDKs, DotNet, etc. to give us ~12GB extra space.
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space-main@v1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+        
+      - uses: actions/checkout@v4
+      
+      - uses: DeterminateSystems/determinate-nix-action@v3
+
+      # 2. Build ONLY the compressed image
+      - name: Build Baguette Image
+        run: nix build .#baguette-zimage
+
+      # 3. Upload the result
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baguette-image
+          path: result/*.zst
+          retention-days: 5
