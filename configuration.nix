@@ -27,16 +27,37 @@
     neovim
     git
     btrfs-progs
-    #gemini-cli
-    #bitwarden-cli
+    gemini-cli
+    bitwarden-cli
+    ptyxis
+    yubioath-flutter
+    yubikey-manager
+    mods
+    ollama
+    claude-code
+    vscode-fhs
   ];
 
-  # Temp Diasable, console error  
-  ## Enable Direnv (loads .envrc files automatically)
-  #programs.direnv = {
-  #  enable = true;
-  #  nix-direnv.enable = true;
-  #};
+  # Enable Ollama Service (For running Meta Llama locally)
+  services.ollama = {
+    enable = true;
+    acceleration = "rocm"; # Use "cuda" if you have NVIDIA, "rocm" for AMD, or remove for CPU-only
+  };
+
+
+
+  # This daemon allows the system to talk to the smart card
+  services.pcscd.enable = true;
+
+  # This installs the UDEV rules so the USB stick is recognized permissions-wise
+  # We use the package here for its rules, even if we don't install the binary to your path
+  services.udev.packages = [ pkgs.yubikey-personalization ];
+
+  # Enable Direnv (loads .envrc files automatically)
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
 
   # Configure your system-wide user settings (groups, etc), add more users as needed.
   users.users = {
