@@ -1,0 +1,37 @@
+name: "Check Configuration"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      # 1. Magic Nix Cache (Speeds up everything)
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      
+      # 2. Check Lockfile Health
+      - uses: DeterminateSystems/flake-checker-action@v12
+
+      # 3. Check Formatting (New!)
+      # Fails if you forgot to run 'nix fmt' before pushing
+      - name: Check Code Formatting
+        run: nix fmt -- --check
+
+      # 4. Linting (Statix)
+      - name: Lint with Statix
+        run: nix shell nixpkgs#statix -c statix check
+
+      # 5. Dead Code (Deadnix)
+      - name: Check for Dead Code
+        run: nix shell nixpkgs#deadnix -c deadnix .
+
+      # 6. Dry Run (The Logic Check)
+      # Verifies the config is valid without building the heavy image
+      - name: Dry-run System Evaluation
+        run: nix build .#nixosConfigurations.baguette-nixos.config.system.build.toplevel --dry-run
