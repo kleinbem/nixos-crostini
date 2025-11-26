@@ -1,35 +1,73 @@
 {
+  description = "NixOS Configuration for Crostini and Baguette";
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-generators = {
       url = "github:nix-community/nixos-generators";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # 1. New Input: The pre-commit hooks library
+    # Using 'follows' prevents downloading a second copy of nixpkgs
+    pre-commit-hooks = {
+      url = "github:cachix/pre-commit-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
+
   outputs =
     {
-      nixos-generators,
-      nixpkgs,
       self,
+      nixpkgs,
+      nixos-generators,
+      pre-commit-hooks, # Added here
       ...
     }@inputs:
     let
       modules = [ ./configuration.nix ];
-
-      # https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-flake-and-module-system
       specialArgs = { inherit inputs; };
-
-      # https://ayats.org/blog/no-flake-utils
-      forAllSystems = nixpkgs.lib.genAttrs [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
 
       targetSystem = "x86_64-linux";
 
+      # Helper to generate attributes for multiple systems
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "x86_64-linux"
+      ];
     in
     {
+      # 2. The Formatter
+      # Explicitly setting this allows me to run 'nix fmt' manually if I want to.
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
+
+      # 3. The Checks (The "Shift Left" Logic)
+      # This defines the validation rules. This logic is now the "Single Source of Truth"
+      # for both my local machine and the CI pipeline.
+      checks = forAllSystems (system: {
+        pre-commit-check = pre-commit-hooks.lib.${system}.run {
+          src = ./.;
+          hooks = {
+            # Code Formatting (must match the formatter above)
+            nixfmt-rfc-style.enable = true;
+
+            # Linting (Check for syntax errors and anti-patterns)
+            statix.enable = true;
+
+            # Dead Code Detection (Find unused variables)
+            deadnix.enable = true;
+          };
+        };
+      });
+
+      # 4. The DevShell (The Activator)
+      # When I run 'nix develop', this shell installs the git hooks automatically.
+      devShells = forAllSystems (system: {
+        default = nixpkgs.legacyPackages.${system}.mkShell {
+          inherit (self.checks.${system}.pre-commit-check) shellHook;
+          buildInputs = self.checks.${system}.pre-commit-check.enabledPackages;
+        };
+      });
+
+      # 5. Packages (Existing logic preserved)
       packages = forAllSystems (system: rec {
         lxc = nixos-generators.nixosGenerate {
           inherit system specialArgs modules;
@@ -43,7 +81,6 @@
         lxc-image-and-metadata = nixpkgs.legacyPackages.${system}.stdenv.mkDerivation {
           name = "lxc-image-and-metadata";
           dontUnpack = true;
-
           installPhase = ''
             mkdir -p $out
             ln -s ${lxc-metadata}/tarball/*.tar.xz $out/metadata.tar.xz
@@ -58,7 +95,7 @@
         default = self.packages.${system}.lxc-image-and-metadata;
       });
 
-      # This allows you to re-build the container from inside the container.
+      # 6. NixOS Configurations (Existing logic preserved)
       nixosConfigurations.lxc-nixos = nixpkgs.lib.nixosSystem {
         inherit specialArgs;
         modules = modules ++ [ self.nixosModules.crostini ];

@@ -207,7 +207,7 @@
                   ''
               );
             in
-            lib.overrideDerivation img (old: {
+            lib.overrideDerivation img (_: {
               requiredSystemFeatures = [ ]; # Allow building even without kvm
             });
 
