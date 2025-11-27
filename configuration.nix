@@ -15,7 +15,6 @@
     # You can also split up your configuration and import pieces of it here:
     # ./users.nix
   ];
-
   # Enable flakes: https://nixos.wiki/wiki/Flakes
   nix.settings.experimental-features = [
     "nix-command"
@@ -24,66 +23,33 @@
   nixpkgs.config.allowUnfree = true;
 
   # Search for additional packages here: https://search.nixos.org/packages
+  # Only system-wide admin tools remain here. User tools moved to home.nix.
   environment.systemPackages = with pkgs; [
-    neovim
-    gh
     wget
     btrfs-progs
-    gemini-cli
-    bitwarden-cli
-    ptyxis
-    yubioath-flutter
-    yubikey-manager
-    mods
-    ollama
-    claude-code
-    vscode-fhs
-    distrobox
-    ripgrep
     curl
-    htop
-    podman-compose
     usbutils
-    pass
     gnupg
   ];
 
-  # --- PROGRAMS ---
-  # Grouped all 'programs.*' settings here to satisfy Statix linter
-  programs = {
-    # My GitHub / Git Configuration
-    git = {
-      enable = true;
-      config = {
-        user = {
-          email = "martin.kleinberger@gmail.com";
-          name = "kleinbem";
-        };
-        push = {
-          autoSetupRemote = true;
-        };
-        init = {
-          defaultBranch = "main";
-        };
-      };
-    };
-
-    # Enable GPG agent
-    gnupg.agent = {
-      enable = true;
-      enableSSHSupport = true; # Optional, if you use it for SSH too
-      pinentryPackage = pkgs.pinentry-curses; # Or pinentry-qt/gtk2 depending on your taste
-    };
-
-    # Enable Direnv (loads .envrc files automatically)
-    direnv = {
-      enable = true;
-      nix-direnv.enable = true;
-    };
+  # Enable GPG agent
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+    # Optional, if you use it for SSH too
+    pinentryPackage = pkgs.pinentry-curses;
+    # Or pinentry-qt/gtk2 depending on your taste
   };
 
-  # --- SERVICES ---
-  # Grouped all 'services.*' settings here to satisfy Statix linter
+  # Enable Podman
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true; # Makes 'docker' alias to 'podman'
+    defaultNetwork.settings.dns_enabled = true;
+  };
+
+  # FIXED: Grouped all services into one block.
+  # This merges ollama, pcscd, and udev configurations.
   services = {
     # Enable Ollama Service (For running Meta Llama locally)
     ollama = {
@@ -97,13 +63,6 @@
     # This installs the UDEV rules so the USB stick is recognized permissions-wise
     # We use the package here for its rules, even if we don't install the binary to your path
     udev.packages = [ pkgs.yubikey-personalization ];
-  };
-
-  # Enable Podman
-  virtualisation.podman = {
-    enable = true;
-    dockerCompat = true; # Makes 'docker' alias to 'podman'
-    defaultNetwork.settings.dns_enabled = true;
   };
 
   # Configure your system-wide user settings (groups, etc), add more users as needed.

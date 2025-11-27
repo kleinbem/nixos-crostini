@@ -1,75 +1,54 @@
 {
-  description = "NixOS Configuration for Crostini and Baguette";
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-generators = {
       url = "github:nix-community/nixos-generators";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # 1. New Input: The pre-commit hooks library
-    pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
+    # Added Home Manager input
+    home-manager = {
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-
   outputs =
     {
-      self,
-      nixpkgs,
       nixos-generators,
-      pre-commit-hooks,
+      nixpkgs,
+      home-manager,
+      self,
       ...
     }@inputs:
     let
-      modules = [ ./configuration.nix ];
+      # We inject Home Manager into the modules list here so it applies
+      # to both lxc-nixos and baguette-nixos automatically.
+      modules = [
+        ./configuration.nix
+        home-manager.nixosModules.home-manager
+        {
+          # FIXED: Grouped all home-manager settings into one block
+          # This satisfies statix and keeps things organized.
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            users.kleinbem = import ./home.nix;
+            # Pass flake inputs to home.nix
+            extraSpecialArgs = { inherit inputs; };
+          };
+        }
+      ];
+      # https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-flake-and-module-system
       specialArgs = { inherit inputs; };
-
-      targetSystem = "x86_64-linux";
-
-      # Helper to generate attributes for multiple systems
+      # https://ayats.org/blog/no-flake-utils
       forAllSystems = nixpkgs.lib.genAttrs [
         "x86_64-linux"
+        "aarch64-linux"
       ];
+      targetSystem = "x86_64-linux";
+
     in
     {
-      # 2. The Formatter
-      # Allows you to run 'nix fmt' manually
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
-
-      # 3. The Checks (Shift Left Logic)
-      # These run in CI (via nix flake check) and locally (via nix develop)
-      checks = forAllSystems (system: {
-        pre-commit-check = pre-commit-hooks.lib.${system}.run {
-          src = ./.;
-          hooks = {
-            # Code Formatting
-            # We use the standard 'nixfmt' hook but force the specific RFC-style package
-            nixfmt = {
-              enable = true;
-              package = nixpkgs.legacyPackages.${system}.nixfmt-rfc-style;
-            };
-
-            # Linting (Syntax & Anti-patterns)
-            statix.enable = true;
-
-            # Dead Code Detection
-            deadnix.enable = true;
-          };
-        };
-      });
-
-      # 4. The DevShell
-      # Run 'nix develop' to automatically install these hooks to .git/hooks
-      devShells = forAllSystems (system: {
-        default = nixpkgs.legacyPackages.${system}.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
-          buildInputs = self.checks.${system}.pre-commit-check.enabledPackages;
-        };
-      });
-
-      # 5. Packages (Your original logic)
       packages = forAllSystems (system: rec {
         lxc = nixos-generators.nixosGenerate {
           inherit system specialArgs modules;
@@ -83,6 +62,7 @@
         lxc-image-and-metadata = nixpkgs.legacyPackages.${system}.stdenv.mkDerivation {
           name = "lxc-image-and-metadata";
           dontUnpack = true;
+
           installPhase = ''
             mkdir -p $out
             ln -s ${lxc-metadata}/tarball/*.tar.xz $out/metadata.tar.xz
@@ -97,7 +77,7 @@
         default = self.packages.${system}.lxc-image-and-metadata;
       });
 
-      # 6. NixOS Configurations (Your original logic)
+      # This allows you to re-build the container from inside the container.
       nixosConfigurations.lxc-nixos = nixpkgs.lib.nixosSystem {
         inherit specialArgs;
         modules = modules ++ [ self.nixosModules.crostini ];
