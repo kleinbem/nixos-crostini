@@ -1,4 +1,5 @@
 name: "Check Configuration"
+
 on:
   push:
     branches: [ main ]
@@ -13,11 +14,9 @@ jobs:
       - uses: DeterminateSystems/determinate-nix-action@v3
       - uses: DeterminateSystems/flake-checker-action@v12
 
-      # This runs the logic we just defined in flake.nix (checks output)
-      # It covers statix, deadnix, and formatting in one go.
-      - name: Run Flake Checks 
+      # This single command now runs nixfmt, statix, and deadnix
+      - name: Run Flake Checks
         run: nix flake check
 
-      # Keep this separate as it builds the system derivation (heavy operation)
       - name: Dry-run System Evaluation
         run: nix build .#nixosConfigurations.baguette-nixos.config.system.build.toplevel --dry-run

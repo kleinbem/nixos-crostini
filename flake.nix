@@ -8,7 +8,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # 1. New Input: The pre-commit hooks library
-    # Using 'follows' prevents downloading a second copy of nixpkgs
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -20,7 +19,7 @@
       self,
       nixpkgs,
       nixos-generators,
-      pre-commit-hooks, # Added here
+      pre-commit-hooks,
       ...
     }@inputs:
     let
@@ -36,30 +35,33 @@
     in
     {
       # 2. The Formatter
-      # Explicitly setting this allows me to run 'nix fmt' manually if I want to.
+      # Allows you to run 'nix fmt' manually
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
-      # 3. The Checks (The "Shift Left" Logic)
-      # This defines the validation rules. This logic is now the "Single Source of Truth"
-      # for both my local machine and the CI pipeline.
+      # 3. The Checks (Shift Left Logic)
+      # These run in CI (via nix flake check) and locally (via nix develop)
       checks = forAllSystems (system: {
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
-            # Code Formatting (must match the formatter above)
-            nixfmt-rfc-style.enable = true;
+            # Code Formatting
+            # We use the standard 'nixfmt' hook but force the specific RFC-style package
+            nixfmt = {
+              enable = true;
+              package = nixpkgs.legacyPackages.${system}.nixfmt-rfc-style;
+            };
 
-            # Linting (Check for syntax errors and anti-patterns)
+            # Linting (Syntax & Anti-patterns)
             statix.enable = true;
 
-            # Dead Code Detection (Find unused variables)
+            # Dead Code Detection
             deadnix.enable = true;
           };
         };
       });
 
-      # 4. The DevShell (The Activator)
-      # When I run 'nix develop', this shell installs the git hooks automatically.
+      # 4. The DevShell
+      # Run 'nix develop' to automatically install these hooks to .git/hooks
       devShells = forAllSystems (system: {
         default = nixpkgs.legacyPackages.${system}.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
@@ -67,7 +69,7 @@
         };
       });
 
-      # 5. Packages (Existing logic preserved)
+      # 5. Packages (Your original logic)
       packages = forAllSystems (system: rec {
         lxc = nixos-generators.nixosGenerate {
           inherit system specialArgs modules;
@@ -95,7 +97,7 @@
         default = self.packages.${system}.lxc-image-and-metadata;
       });
 
-      # 6. NixOS Configurations (Existing logic preserved)
+      # 6. NixOS Configurations (Your original logic)
       nixosConfigurations.lxc-nixos = nixpkgs.lib.nixosSystem {
         inherit specialArgs;
         modules = modules ++ [ self.nixosModules.crostini ];
