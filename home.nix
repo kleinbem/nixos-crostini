@@ -40,6 +40,7 @@
       htop
       podman-compose
       pass
+      just
     ];
   };
 
