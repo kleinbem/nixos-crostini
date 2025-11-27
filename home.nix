@@ -41,6 +41,7 @@
       podman-compose
       pass
       just
+      fzf
     ];
   };
 
