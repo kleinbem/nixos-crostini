@@ -1,5 +1,9 @@
-{ config, pkgs, ... }:
-
+{
+  config,
+  pkgs,
+  inputs,
+  ...
+}: # Accepts 'inputs'
 {
   # ---------------------------------------------------------------------
   # Core Home Manager Configuration
@@ -7,19 +11,11 @@
   home = {
     username = "kleinbem";
     homeDirectory = "/home/kleinbem";
-
-    # Should match your system stateVersion
     stateVersion = "25.05";
-
-    # Fixes the "mismatched versions" warning (since you are on unstable)
     enableNixpkgsReleaseCheck = false;
 
-    # BEST PRACTICE:
-    # We use 'config' here to reference the homeDirectory defined above.
-    # This satisfies the linter and keeps paths dynamic.
     sessionVariables = {
       EDITOR = "nvim";
-      # Example: A variable for your development folder
       PROJECTS = "${config.home.homeDirectory}/Develop";
     };
 
@@ -49,23 +45,18 @@
   # Programs
   # ---------------------------------------------------------------------
   programs = {
-    # Let Home Manager manage itself
     home-manager.enable = true;
-
     bash = {
       enable = true;
     };
 
-    # Direnv Configuration
     direnv = {
       enable = true;
       nix-direnv.enable = true;
     };
 
-    # Git Configuration
     git = {
       enable = true;
-      # Keeping your specific settings structure
       settings = {
         user = {
           name = "kleinbem";
@@ -78,6 +69,21 @@
           defaultBranch = "main";
         };
       };
+    };
+
+    # 🌟 NEW: Declarative Flatpak Integration (via nix-flatpaks)
+    flatpak = {
+      enable = true;
+      inherit (inputs.nix-flatpaks) portals;
+
+      remotes = [
+        "https://dl.flathub.org/repo/flathub.flatpakrepo"
+      ];
+
+      # Declare your applications here
+      packages = [
+        { id = "com.github.Pithos.Pithos"; } # Example application
+      ];
     };
   };
 }

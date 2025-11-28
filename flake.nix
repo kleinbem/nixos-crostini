@@ -5,9 +5,18 @@
       url = "github:nix-community/nixos-generators";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Added Home Manager input
     home-manager = {
       url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # 🌟 NEW: Input for your custom kernel builder
+    kernel-builder = {
+      url = "path:./kleinbem/chromeos-vm-kernel";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # 🌟 NEW: Input for nix-flatpaks
+    nix-flatpaks = {
+      url = "github:nix-community/nix-flatpaks";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -17,34 +26,41 @@
       nixpkgs,
       home-manager,
       self,
+      kernel-builder, # Added
+      nix-flatpaks, # Added
       ...
     }@inputs:
     let
-      # We inject Home Manager into the modules list here so it applies
-      # to both lxc-nixos and baguette-nixos automatically.
       modules = [
         ./configuration.nix
         home-manager.nixosModules.home-manager
+        # 🌟 NEW: Add the nix-flatpaks module
+        nix-flatpaks.nixosModules.nix-flatpaks
         {
-          # FIXED: Grouped all home-manager settings into one block
-          # This satisfies statix and keeps things organized.
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
             users.kleinbem = import ./home.nix;
-            # Pass flake inputs to home.nix
-            extraSpecialArgs = { inherit inputs; };
+            # Pass all inputs to home.nix
+            extraSpecialArgs = { inherit inputs nix-flatpaks; };
           };
         }
       ];
-      # https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-flake-and-module-system
-      specialArgs = { inherit inputs; };
-      # https://ayats.org/blog/no-flake-utils
+
+      targetSystem = "x86_64-linux";
+
+      # Define the custom kernel package set
+      customKernelPkgs = kernel-builder.packages.${targetSystem}.default;
+
+      # Pass the custom kernel package set as a special argument
+      specialArgs = {
+        inherit inputs customKernelPkgs;
+      };
+
       forAllSystems = nixpkgs.lib.genAttrs [
         "x86_64-linux"
         "aarch64-linux"
       ];
-      targetSystem = "x86_64-linux";
 
     in
     {
@@ -77,7 +93,6 @@
         default = self.packages.${system}.lxc-image-and-metadata;
       });
 
-      # This allows you to re-build the container from inside the container.
       nixosConfigurations.lxc-nixos = nixpkgs.lib.nixosSystem {
         inherit specialArgs;
         modules = modules ++ [ self.nixosModules.crostini ];
