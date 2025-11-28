@@ -52,6 +52,10 @@
     # Let Home Manager manage itself
     home-manager.enable = true;
 
+    bash = {
+      enable = true;
+    };
+
     # Direnv Configuration
     direnv = {
       enable = true;
